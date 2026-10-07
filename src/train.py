@@ -5,6 +5,7 @@ import yaml
 import json
 import joblib
 import os
+import numpy as np
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
@@ -12,6 +13,10 @@ from sklearn.metrics import accuracy_score, f1_score
 # Ly do: bo du lieu Adult co ty le lop 75/25. Mot mo hinh doan bua
 # "thu nhap thap" cho moi mau da dat accuracy 0.75 ma khong hoc duoc gi.
 F1_THRESHOLD = 0.65
+
+# Bonus 5: ty le lop duong tham chieu va muc lech toi da cho phep (5 diem %)
+REFERENCE_POSITIVE_RATE = 0.248
+DRIFT_TOLERANCE = 0.05
 
 
 def train(
@@ -41,6 +46,15 @@ def train(
     X_eval = df_eval.drop(columns=["target"])
     y_eval = df_eval["target"]
 
+    # Bonus 5: canh bao lech lac du lieu truoc khi huan luyen
+    positive_rate = float(y_train.mean())
+    print(f"Ty le lop duong trong tap huan luyen: {positive_rate:.4f}")
+    if abs(positive_rate - REFERENCE_POSITIVE_RATE) > DRIFT_TOLERANCE:
+        print(
+            f"CANH BAO DATA DRIFT: ty le lop duong {positive_rate:.4f} lech hon "
+            f"{DRIFT_TOLERANCE:.0%} so voi tham chieu {REFERENCE_POSITIVE_RATE:.3f}"
+        )
+
     with mlflow.start_run():
 
         # Ghi nhan cac sieu tham so
@@ -63,10 +77,36 @@ def train(
 
         print(f"F1: {f1:.4f} | Accuracy: {acc:.4f}")
 
+        # Bonus 2: quet nguong quyet dinh tu 0.1 den 0.9 (buoc 0.05).
+        # Quality gate van dung f1 tai nguong mac dinh 0.5.
+        proba = model.predict_proba(X_eval)[:, 1]
+        best_threshold, best_threshold_f1 = 0.5, f1
+        for t in np.round(np.arange(0.1, 0.9001, 0.05), 2):
+            f1_t = float(f1_score(y_eval, (proba >= t).astype(int)))
+            if f1_t > best_threshold_f1:
+                best_threshold, best_threshold_f1 = float(t), f1_t
+        print(
+            f"Nguong tot nhat: {best_threshold:.2f} -> F1 {best_threshold_f1:.4f} "
+            f"(nguong 0.5 -> F1 {f1:.4f})"
+        )
+
+        mlflow.log_metric("positive_rate", positive_rate)
+        mlflow.log_metric("best_threshold", best_threshold)
+        mlflow.log_metric("best_threshold_f1", best_threshold_f1)
+
         # Luu metrics ra file outputs/report.json (GitHub Actions doc o Buoc 2)
         os.makedirs("outputs", exist_ok=True)
         with open("outputs/report.json", "w") as f:
-            json.dump({"f1_score": f1, "accuracy": acc}, f)
+            json.dump(
+                {
+                    "f1_score": f1,
+                    "accuracy": acc,
+                    "positive_rate": positive_rate,
+                    "best_threshold": best_threshold,
+                    "best_threshold_f1": best_threshold_f1,
+                },
+                f,
+            )
 
         # Luu mo hinh ra file models/model.joblib (upload len cloud o Buoc 2)
         os.makedirs("models", exist_ok=True)

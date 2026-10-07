@@ -77,3 +77,36 @@ def test_model_file_created(tmp_path):
     )
 
     assert os.path.exists("models/model.joblib")
+
+
+def test_report_has_bonus_fields(tmp_path):
+    """Kiem tra report.json co them ty le lop duong (Bonus 5) va nguong tot nhat (Bonus 2)."""
+    train_path, eval_path = _make_temp_data(tmp_path)
+    train(
+        {"n_estimators": 10, "learning_rate": 0.1, "max_depth": 2},
+        data_path=train_path,
+        eval_path=eval_path,
+    )
+
+    with open("outputs/report.json") as f:
+        report = json.load(f)
+    assert 0.0 <= report["positive_rate"] <= 1.0
+    assert 0.1 <= report["best_threshold"] <= 0.9
+    assert report["best_threshold_f1"] >= report["f1_score"]
+
+
+def test_detail_report(tmp_path):
+    """Kiem tra bao cao precision / recall (Bonus 3) co confusion matrix va du hai lop."""
+    from src.report_detail import build_report
+
+    train_path, eval_path = _make_temp_data(tmp_path)
+    train(
+        {"n_estimators": 10, "learning_rate": 0.1, "max_depth": 2},
+        data_path=train_path,
+        eval_path=eval_path,
+    )
+
+    report = build_report(eval_path=eval_path)
+    assert "Confusion matrix" in report
+    assert "thu_nhap_thap" in report
+    assert "thu_nhap_cao" in report
