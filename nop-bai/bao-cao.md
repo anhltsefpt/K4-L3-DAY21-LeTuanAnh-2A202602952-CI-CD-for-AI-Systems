@@ -1,23 +1,12 @@
 # Báo Cáo Lab Day 21 - CI/CD cho AI Systems
 
-<!--
-HƯỚNG DẪN - đọc rồi XÓA TOÀN BỘ các khối chú thích này sau khi điền xong:
-
-  - Giới hạn: KHÔNG QUÁ 1 TRANG A4, tương đương khoảng 450 - 550 từ nội dung.
-  - Chỉ điền vào các chỗ ___ và các ô trong bảng. Không thêm mục mới.
-  - Viết bằng câu hoàn chỉnh, không gạch đầu dòng cụt lủn.
-  - Kiểm tra độ dài sau khi đã xóa hết chú thích:
-        wc -w nop-bai/bao-cao.md
-    và xem trước bản in bằng cách mở file trên GitHub rồi Ctrl+P / Cmd+P.
--->
-
 | | |
 |---|---|
-| Họ và tên | ___ |
-| MSSV | ___ |
+| Họ và tên | Lê Tuấn Anh |
+| MSSV | 2A202602952 |
 | Lớp / Khóa | K4 |
-| Repo GitHub | https://github.com/___/___ |
-| Ngày nộp | ___ |
+| Repo GitHub | https://github.com/anhltsefpt/K4-L3-DAY21-LeTuanAnh-2A202602952-CI-CD-for-AI-Systems |
+| Ngày nộp | 07/10/2026 |
 
 ---
 
@@ -31,52 +20,31 @@ HƯỚNG DẪN - đọc rồi XÓA TOÀN BỘ các khối chú thích này sau k
 
 **Bộ siêu tham số đã chọn:** `n_estimators=200`, `learning_rate=0.1`, `max_depth=5`.
 
-**Lý do:** Bộ này đạt `f1_score` cao nhất trên tập holdout (0.7149), nên là lựa chọn tốt nhất theo chỉ số chính của lab. Lần chạy có accuracy cao nhất là lần 2 (0.878), không trùng với lần có F1 cao nhất. Điều này cho thấy accuracy có thể tăng nhờ đoán đúng thêm lớp đa số, trong khi khả năng nhận diện người thu nhập cao lại kém hơn, vì vậy không thể dựa vào accuracy để chọn mô hình. Lần chạy 1 dùng `learning_rate` nhỏ nhưng chỉ có 50 cây nông nên chưa học đủ, F1 chỉ đạt 0.6051 và không vượt ngưỡng 0.65. Kết quả này minh họa đánh đổi giữa hai tham số: khi giảm `learning_rate`, mỗi cây đóng góp ít hơn nên cần tăng `n_estimators` để bù lại. Tuy vậy, mức tăng F1 từ lần 2 lên lần 3 khá nhỏ trong khi thời gian huấn luyện tăng gần gấp đôi.
+**Lý do:** Bộ này đạt `f1_score` cao nhất trên holdout (0.7149). Lần chạy có accuracy cao nhất là lần 2 (0.878) lại không có F1 cao nhất, cho thấy accuracy không phản ánh đúng khả năng nhận diện người thu nhập cao. Lần chạy 1 dùng `learning_rate` nhỏ với chỉ 50 cây nông nên chưa học đủ, F1 chỉ đạt 0.6051 và không qua ngưỡng 0.65: khi giảm `learning_rate` thì cần tăng `n_estimators` để bù lại. Mức tăng F1 từ lần 2 lên lần 3 khá nhỏ trong khi thời gian huấn luyện tăng gần gấp đôi.
 
 ---
 
 ## 2. Vì Sao Ngưỡng Chất Lượng Đặt Trên F1 Chứ Không Phải Accuracy
 
-Tập dữ liệu Adult mất cân bằng: chỉ 24,8% số mẫu thuộc lớp thu nhập trên 50K, cả trên tập huấn luyện lẫn tập holdout. Vì vậy, một mô hình luôn trả lời "thu nhập thấp" vẫn đạt accuracy 0,752 dù không học được gì và không nhận ra được người thu nhập cao nào. Con số này gây hiểu nhầm vì nó chủ yếu phản ánh tỷ lệ của lớp đa số, không phản ánh chất lượng mô hình. F1 của lớp dương là trung bình điều hòa của precision và recall trên lớp thu nhập cao. Nó đo xem mô hình tìm được bao nhiêu người thu nhập cao và dự đoán có chính xác không. Với mô hình luôn đoán "thu nhập thấp", F1 bằng 0. Lab không dùng `average="weighted"` hay `average="macro"` vì hai cách này cộng thêm F1 của lớp đa số vốn rất cao, làm điểm số bị đẩy lên và che mất điểm yếu trên lớp dương. Khi đó ngưỡng 0.65 sẽ mất tác dụng chặn mô hình kém.
+Chỉ 24,8% số mẫu thuộc lớp thu nhập trên 50K, nên một mô hình luôn trả lời "thu nhập thấp" vẫn đạt accuracy 0,752 dù không nhận ra được người thu nhập cao nào. Con số này gây hiểu nhầm vì nó chủ yếu phản ánh tỷ lệ lớp đa số. F1 của lớp dương kết hợp precision và recall trên lớp thu nhập cao, đo xem mô hình tìm được bao nhiêu người thu nhập cao và đoán có chính xác không; với mô hình luôn đoán "thu nhập thấp", F1 bằng 0. Lab không dùng `average="weighted"` hay `"macro"` vì hai cách này gộp thêm F1 rất cao của lớp đa số, che mất điểm yếu trên lớp dương và làm ngưỡng 0.65 mất tác dụng.
 
 ---
 
 ## 3. Khó Khăn Gặp Phải và Cách Giải Quyết
 
-<!-- Nêu 2 - 3 khó khăn thật, mỗi ô một câu ngắn. -->
-
 | Khó khăn | Nguyên nhân | Cách giải quyết |
 |---|---|---|
-| ___ | ___ | ___ |
-| ___ | ___ | ___ |
-| ___ | ___ | ___ |
+| MLflow lỗi `ImportError` khi ghi vào SQLite. | SQLAlchemy 2.1 không tương thích với `mlflow==2.13.0`. | Ghim `sqlalchemy<2.1` trong `requirements.txt`. |
+| Job Release thất bại do service trên VM crash. | File systemd có `ARTIFACT_BUCKET` rỗng vì `$BUCKET` chưa được đặt trên VM. | Ghi trực tiếp tên bucket vào file service và cài `scikit-learn==1.4.2` khớp lúc train. |
+| `dvc push` báo lỗi `401 Invalid Credentials`. | `credentialpath` trỏ sai ra ngoài repo. | Đặt lại `credentialpath` trong `.dvc/config.local` và kiểm tra bằng `dvc status -c`. |
 
 ---
 
 ## 4. So Sánh Bước 2 và Bước 3 (bắt buộc, 2 - 3 câu)
 
-<!-- Lấy số liệu từ bảng ở mục 3.6 của tasks/buoc-3.md. -->
-
 | | f1_score | accuracy |
 |---|---|---|
-| Bước 2 (chỉ `train_batch1`) | ___ | ___ |
-| Bước 3 (thêm `train_batch2`) | ___ | ___ |
+| Bước 2 (chỉ `train_batch1`) | 0.7149 | 0.874 |
+| Bước 3 (thêm `train_batch2`) | 0.7354 | 0.882 |
 
-**Nhận xét:** ___
-
-<!--
-Một câu trả lời trung thực kiểu "f1 giảm 0,01 vì dữ liệu mới cùng phân phối, không mang
-thêm thông tin mới" được đánh giá cao hơn kết luận sai rằng thêm dữ liệu luôn tốt hơn.
--->
-
----
-
-## 5. Phần Bonus Đã Thực Hiện (nếu có)
-
-<!-- Xóa cả mục 5 nếu không làm bonus. Mỗi bonus tối đa 1 dòng. -->
-
-- [ ] Bonus 1 - Tracking MLflow từ xa với DagsHub: ___
-- [ ] Bonus 2 - Điều chỉnh ngưỡng quyết định: ___
-- [ ] Bonus 3 - Báo cáo precision / recall tự động: ___
-- [ ] Bonus 4 - Hoàn trả về phiên bản trước: ___
-- [ ] Bonus 5 - Cảnh báo lệch lạc dữ liệu: ___
+**Nhận xét:** Sau khi gộp thêm 22.361 mẫu, `f1_score` tăng từ 0.7149 lên 0.7354 và mô hình mới được triển khai tự động. Mức tăng này nhỏ: holdout chỉ có 500 mẫu (124 mẫu lớp dương), nên lệch vài dự đoán đã đủ làm F1 thay đổi khoảng 0.02. Dữ liệu mới có cùng phân phối nên chưa thể kết luận thêm dữ liệu chắc chắn tốt hơn; điểm chính của Bước 3 là một commit dữ liệu đã kích hoạt trọn vẹn pipeline mà không cần thao tác thủ công.
